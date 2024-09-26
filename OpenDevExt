@@ -106,7 +106,7 @@ local UsbGpioExtName
 
 :global ODUsbGPIOExtPort
 :local NewPort
-:local NowPort $ODUsbGPIOExtPort; # сохранить текущий порт
+:local NowPort $ODUsbGPIOExtPort
 
 :do {
     :foreach portId in=[/port find name~$portTypeUSB !inactive] do={:set portUSB ([/port get $portId]->"name")}

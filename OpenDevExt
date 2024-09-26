@@ -1,0 +1,163 @@
+#----------------------------------------------------------------
+# Functon support OPEN Dev USB GPIO EXTENDER
+# by Sertik version 1.0 24/09/2024
+#----------------------------------------------------------------
+# check in ROS 6.49.10
+
+# usage: 
+
+# $OpenDevExt list - output a list of function commands for the module to the terminal and log
+# :put [$OpenDevExt logic] - return the set value of the operating logic
+# $OpenDevExt logic [true/false] - set forward/reverse operating logic
+# $OpenDevExt reset - module reset
+# $OpenDevExt SetOut XXYXY [0-1] - setting all Out outputs, for example 00111
+# $OpenDevExt OutOn X [1-5] - “turn on” output X 
+# $OpenDevExt OutOff Y - “turn off” output Y [1-5]
+
+# all module commands:
+# -----------------------------------------------------------------------
+# ~Sx sets the output in x to 1.
+# ~Rx sets the output at x to 0.
+# ~Gx read the current value of input x.
+# ~A read the values ​​of all inputs as "xxxxx". Example response "~A11001".
+# ~Pxxxxx writes the values ​​of all outputs as “xxxxx”. For example "~P11001".
+# ~B reboot the module.
+# ~I request information about the firmware version.
+
+# functions supported in this version of the command:
+# ------------------------------------------------
+# ~Sx
+# ~Rx
+# ~Pxxxxх 
+# ~B 
+# logic - reading/setting out-output logic: true - direct; false - reverse (for relays with direct and reverse logic for turning on/off outputs)
+# if logic was not specified, the function sets the direct operating logic, if it was specified, it is remembered in global $OpenDevReleLogic 
+# and the SetOut OutOn and OutOff commands work on it.
+
+:global  OpenDevExt do={
+ 
+:local ModuleType "OpenDevUsbGPIOExtender"
+:local portTypeUSB "usb"
+:global OpenDevModuleType $ModuleType
+:local USBresLinuxName "USB GPIO Extender"
+:global OpenDevReleLogic
+:local UsbGpioExtFlag false
+:local portUSB;
+:local BaudRate 9600
+:local DataBits 8
+:local Parity none
+:local StopBits 1
+:local FlowControl none
+:local PppclientName $ModuleType
+
+:local ArrayCom {
+   "logic"="X"
+   "OutOn"="~S"
+   "OutOff"="~R"
+   "SetOut"="~P"
+   "reset"="~B"
+ }
+
+:if ([:len $1]=0) do={:return "Еrror: no set name command"}
+
+# help
+   :if ($1="help") do={
+      :put ""; :put "---- Function support for $OpenDevModuleType ----"
+                   :put "      version $version"
+                   :put  " usage:" 
+:terminal style "syntax-meta"
+:put "$0 help" 
+:put "$0 list"
+:put "$0 logic [true/false]"
+:put "$0 reset"
+:put "$0 SetOut XXYXY [0-1]"
+:put "$0 OutOn X [1-5]"
+:put "$0 OutOff Y [1-5]"
+:terminal style none
+  :return []}
+
+# list 
+   :if ($1="list") do={
+      :put ""; :put "<---- Supported $OpenDevModuleType commands  ---->"
+          :foreach k,v in $ArrayCom do={:put ("  "."$k")}
+  :return []}
+
+# logic
+   :if ($1="logic") do={
+       :if (($2="true") or ($2="false")) do={
+           :if ($2="true") do={:set OpenDevReleLogic true}
+           :if ($2="false") do={:set OpenDevReleLogic false}
+           :return OK
+     } else={:if ([:len $2]=0) do={
+         :if (($OpenDevReleLogic=true) or ($OpenDevReleLogic=false)) do={
+         :return $OpenDevReleLogic} else={:return "logic is not specified or incorrect"}
+                 }
+    :return ("Error"." $0"." $1")}
+}
+
+local UsbGpioExtName
+:do {
+:set UsbGpioExtName [/system resource usb get [/system resource usb find name~$USBresLinuxName] name]
+    } on-error={}
+:if ($UsbGpioExtName=$USBresLinuxName) do={:set UsbGpioExtFlag true}
+:if ($UsbGpioExtFlag=false) do={:return "Error: Not find $OpenDevModuleType module in ROS system. Please, check device in USB port"}
+
+
+:global ODUsbGPIOExtPort
+:local NewPort
+:local NowPort $ODUsbGPIOExtPort; # сохранить текущий порт
+
+:do {
+    :foreach portId in=[/port find name~$portTypeUSB !inactive] do={:set portUSB ([/port get $portId]->"name")}
+    } on-error={}  
+
+    :set NewPort $portUSB
+
+    :if (([:len $NewPort]=0) or ([:len [/port find name=$NewPort]]=0)) do={:return "Error: Not find port for $OpenDevModuleType module, port inactive or busy. Please, check /port"}
+
+   :if (($NowPort!=$NewPort) and ([/port find name=$NowPort and inactive=yes])) do={:set ODUsbGPIOExtPort $NewPort} else={:set ODUsbGPIOExtPort $NowPort}
+   :if ([:len $ODUsbGPIOExtPort]=0) do={:set ODUsbGPIOExtPort $NewPort}
+  
+  :local consoleFlagOff false
+        if ([:len [/system console find port=$ODUsbGPIOExtPort and !disabled]]>0) do={
+                :set consoleFlagOff true
+                /system console set [/system console find port=$ODUsbGPIOExtPort] disable=yes
+        }
+
+    do {
+             /port set [/port find name=$ODUsbGPIOExtPort] baud-rate=$BaudRate data-bits=$DataBits parity=$Parity stop-bits=$StopBits flow-control=$FlowControl
+          } on-error={:return "Error set port $ODUsbGPIOExtPort. Function $0 d`not work"}
+
+
+# main function`s code
+   :local cmd ($ArrayCom->$1)
+    :if ([:len $cmd]=0) do={:return "Error: bad command"}
+               :put "Execute command $OpenDevModuleType: $1 $2"
+               :log warning "Execute command $OpenDevModuleType: $1 $2"
+
+:if ((($1="OutOn") or ($1="OutOff")) and ([:len $2]!=1)) do={:return ("Error function: "."$0 "."$2 - there is incorrect data, set number in range [1-5]")} 
+:if (($1="SetOut") and ([:len $2]!=5)) do={:return ("Error function: "."$0 "."$2 - there is incorrect data, set the status of 5 outputs")} 
+
+:if ([:len $OpenDevReleLogic]=0) do={:set OpenDevReleLogic true}
+:if (($1="OutOn") && ($OpenDevReleLogic=false)) do={:set cmd ($ArrayCom->"OutOff")}
+:if (($1="OutOff") && ($OpenDevReleLogic=false)) do={:set cmd ($ArrayCom->"OutOn")}
+
+:if (($1="SetOut") && ($OpenDevReleLogic=false)) do={:local a $2; :local b; :local d;
+:local f do={:local c; :for i from=0 to=[:len $1] do={:set c ("$c"."$[:pick $1 $i (1+$i)]".".")}; return [:pick $c 0 ([:len $c]-2)]}
+:set b ([$f [:pick $a 0 4]]^1.1.1.1); :set d ([$f [:pick $a 1 5]]^1.1.1.1); :set d ("$b"."$[:pick $d 5 7]"); set b ""
+:for i from=0 to=[:len $d] do={:set a [:pick $d $i (1+$i)]; if ($a=".") do={} else={:set b ("$b"."$a")}}; :set $2 $b}
+
+      :if ([/interface ppp-client find name=$PppclientName]) do={/interface ppp-client remove [/interface ppp-client find name=$PppclientName]}
+
+# :put ("Send module "."$USBresLinuxName "."command: "."$cmd"."$2")
+
+     /interface ppp-client add name=$PppclientName dial-on-demand=no port=$ODUsbGPIOExtPort modem-init=("$cmd"."$2") null-modem=yes disabled=no
+     :delay 1s
+     /interface ppp-client remove [/interface ppp-client find name=$PppclientName]
+
+   :if ($consoleFlagOff) do={
+   :do {/system console set [/system console find port=$ODUsbGPIOExtPort] disable=no} on-error={}
+     }
+# end	 
+   :return OK
+}

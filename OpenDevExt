@@ -142,10 +142,12 @@ local UsbGpioExtName
 :if (($1="OutOn") && ($OpenDevReleLogic=false)) do={:set cmd ($ArrayCom->"OutOff")}
 :if (($1="OutOff") && ($OpenDevReleLogic=false)) do={:set cmd ($ArrayCom->"OutOn")}
 
-:if (($1="SetOut") && ($OpenDevReleLogic=false)) do={:local a $2; :local b; :local d;
-:local f do={:local c; :for i from=0 to=[:len $1] do={:set c ("$c"."$[:pick $1 $i (1+$i)]".".")}; return [:pick $c 0 ([:len $c]-2)]}
-:set b ([$f [:pick $a 0 4]]^1.1.1.1); :set d ([$f [:pick $a 1 5]]^1.1.1.1); :set d ("$b"."$[:pick $d 5 7]"); set b ""
-:for i from=0 to=[:len $d] do={:set a [:pick $d $i (1+$i)]; if ($a=".") do={} else={:set b ("$b"."$a")}}; :set $2 $b}
+:if (($1="SetOut") && ($OpenDevReleLogic=false)) do={
+:local r "";:for i from=0 to=([:len $2] -1) do={
+      :if ([:pick $2 $i (1 + $i)] = "1") do={:set r ($r . "0")} else={:set r ($r . "1")}
+    }
+:set $2 $r
+}
 
       :if ([/interface ppp-client find name=$PppclientName]) do={/interface ppp-client remove [/interface ppp-client find name=$PppclientName]}
 

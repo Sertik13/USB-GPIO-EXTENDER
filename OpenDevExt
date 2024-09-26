@@ -6,6 +6,7 @@
 
 # usage: 
 
+# $OpenDevExt help
 # $OpenDevExt list - output a list of function commands for the module to the terminal and log
 # :put [$OpenDevExt logic] - return the set value of the operating logic
 # $OpenDevExt logic [true/false] - set forward/reverse operating logic

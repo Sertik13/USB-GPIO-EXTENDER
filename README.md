@@ -6,4 +6,4 @@ The device can be connected to any Microtik router via a USB port and has 5 disc
 
 modul USB GPIO EXTENDER by Open Development Company http://open-dev.ru
 
-scripts for Router OS by Sertik (Serkov S.V.) 2024 
+scripts for Router OS by Sertik (Serkov S.V.) 2024 https://forummikrotik.ru/viewtopic.php?t=13947

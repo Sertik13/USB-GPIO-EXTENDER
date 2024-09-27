@@ -17,8 +17,8 @@
 
 # all module commands:
 # -----------------------------------------------------------------------
-# ~Sx sets the output in x to 1.
-# ~Rx sets the output at x to 0.
+# ~Sx sets the output x to 1.
+# ~Rx sets the output x to 0.
 # ~Gx read the current value of input x.
 # ~A read the values ​​of all inputs as "xxxxx". Example response "~A11001".
 # ~Pxxxxx writes the values ​​of all outputs as “xxxxx”. For example "~P11001".
